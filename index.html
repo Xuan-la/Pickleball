@@ -538,13 +538,13 @@
                 <label>
                     <strong>⚠️ Chế Độ Xem (Chỉ Đọc) - Luôn Bật</strong>
                 </label>
-                <p class="info-text" style="margin-top: 8px;">Chế độ xem luôn được bật. Nhập mật khẩu (mặc định: ) để tắt chế độ xem 5 phút.</p>
-                <button class="btn warning" onclick="toggleReadOnlyWithPassword()">🔓 Tắt Chế Độ Xem</button>
+                <p class="info-text" style="margin-top: 8px;">Chế độ xem luôn bật. Nhập mật khẩu để tạm tắt trong 5 phút.</p>
+                <button class="btn warning" onclick="toggleReadOnlyWithPassword()">🔓 Tắt Chế Độ Xem (5 phút)</button>
             </div>
 
             <div class="info-text" style="margin-top: 20px; background: rgba(192, 21, 47, 0.1); padding: 12px; border-radius: 8px;">
-                ⚠️ <strong>Chế Độ Xem:</strong> Luôn bật, tắt 5 phút khi nhập mật khẩu<br>
-                ⚠️ <strong>Đồng Bộ:</strong> Mật khẩu được lưu trên Cloud Firebase
+                ⚠️ <strong>Chế Độ Xem:</strong> Khi bật, chỉ khóa nút Thêm / Ghi / Xóa<br>
+                ⚠️ <strong>Mật Khẩu:</strong> Được lưu và đồng bộ trên Cloud Firebase
             </div>
 
             <h3 style="margin-top: 30px;">Trạng Thái Hiện Tại</h3>
@@ -561,7 +561,8 @@
         <!-- Tab Backup -->
         <div id="backup" class="tab-content">
             <h2>💾 Sao Lưu & Đồng Bộ</h2>
-            <button class="btn success" onclick="manualSaveFirebase()">💾 Lưu Lên Firebase Ngay</button>
+            <button class="btn success" onclick="toggleAutoSync()" id="autoSyncBtn">🔄 Tự Động Đồng Bộ Firebase</button>
+            <button class="btn" onclick="manualSaveFirebase()">💾 Lưu Lên Firebase Ngay</button>
             <button class="btn" onclick="manualLoadFirebase()">📥 Tải Từ Firebase</button>
             <button class="btn" onclick="exportData()">📥 Tải Về (JSON)</button>
             <button class="btn danger" onclick="clearAllData()">🗑️ Xóa Tất Cả</button>
@@ -595,6 +596,7 @@
         let members = JSON.parse(localStorage.getItem('members')) || [];
         let schedules = JSON.parse(localStorage.getItem('schedules')) || [];
         let matches = JSON.parse(localStorage.getItem('matches')) || [];
+        let autoSyncEnabled = true;
         let readOnlyMode = true;
         let adminPassword = localStorage.getItem('adminPassword') || 'Tayho';
 
@@ -612,10 +614,8 @@
         }
 
         function updateSettingsUI() {
-            document.getElementById('modeStatus').textContent = '🔒 Chỉ Xem (Bật)';
-            document.getElementById('modeStatus').className = 'money negative';
-            document.getElementById('pwdStatus').textContent = '✓ ' + adminPassword;
-            document.getElementById('pwdStatus').className = 'money positive';
+            document.getElementById('modeStatus').textContent = readOnlyMode ? '🔒 Chỉ Xem (Bật)' : '✏️ Chỉnh Sửa (Tạm thời)';
+            document.getElementById('modeStatus').className = readOnlyMode ? 'money negative' : 'money positive';
             document.getElementById('syncStatus2').textContent = '✓ Tự Động';
             document.getElementById('syncStatus2').className = 'money positive';
         }
@@ -624,37 +624,33 @@
             const pwd = prompt('Nhập mật khẩu admin để tắt chế độ xem (5 phút):');
             if (!pwd) return;
             if (pwd !== adminPassword) {
-                showNotification('❌ Mật khẩu sai!', 'error');
+                showNotification('Mật khẩu sai!', 'error');
                 return;
             }
             readOnlyMode = false;
             applyReadOnlyMode();
-            showNotification('✅ Chế độ chỉnh sửa đã bật - 5 phút', 'success');
             updateSettingsUI();
+            showNotification('✓ Chế độ chỉnh sửa đã bật trong 5 phút', 'success');
             setTimeout(() => {
                 readOnlyMode = true;
                 applyReadOnlyMode();
-                showNotification('⏱️ Quay lại chế độ xem', 'info');
                 updateSettingsUI();
+                showNotification('⏱️ Đã quay lại chế độ chỉ xem', 'info');
                 autoSync();
             }, 300000);
         }
 
         function applyReadOnlyMode() {
-            const disableElements = [
-                'memberName', 'memberType', 'scheduleDate', 'scheduleNote', 
-                'eventDate', 'pair1a', 'pair1b', 'pair2a', 'pair2b', 'score1', 'score2',
-                'paymentDate'
-            ];
-            
-            disableElements.forEach(id => {
-                const elem = document.getElementById(id);
-                if (elem) elem.disabled = readOnlyMode;
-            });
-
+            // Chế độ xem: chỉ khóa nút hành động, KHÔNG khóa select / input ngày
+            const disableButtonsText = ['Thêm', 'Ghi', 'Xóa'];
             const buttons = document.querySelectorAll('.btn');
+
             buttons.forEach(btn => {
-                if (!btn.textContent.includes('Firebase') && !btn.textContent.includes('Tải') && !btn.textContent.includes('Tắt')) {
+                const text = btn.textContent || '';
+                const isAction =
+                    disableButtonsText.some(t => text.includes(t)) &&
+                    !text.includes('Tải') && !text.includes('Firebase');
+                if (isAction) {
                     btn.disabled = readOnlyMode;
                     btn.style.opacity = readOnlyMode ? '0.5' : '1';
                     btn.style.cursor = readOnlyMode ? 'not-allowed' : 'pointer';
@@ -1122,8 +1118,8 @@
                     schedules = data.schedules || [];
                     matches = data.matches || [];
                     adminPassword = data.adminPassword || 'Tayho';
-                    localStorage.setItem('adminPassword', adminPassword);
                     saveData();
+                    localStorage.setItem('adminPassword', adminPassword);
                     updateMembersList();
                     updatePairSelects();
                     updateScheduleList();
@@ -1167,6 +1163,10 @@
                 text.textContent = 'Sẵn sàng đồng bộ';
             }
         }
+
+        window.toggleAutoSync = function() {
+            showNotification('✅ Tự động đồng bộ luôn bật', 'info');
+        };
 
         window.toggleReadOnlyWithPassword = toggleReadOnlyWithPassword;
         window.manualSaveFirebase = manualSaveFirebase;
@@ -1229,10 +1229,10 @@
         updateScheduleList();
         updateScheduleSelects();
         updateMatchList();
+        document.getElementById('autoSyncBtn').textContent = '✅ Tự Động Đồng Bộ (BẬT)';
         applyReadOnlyMode();
         updateSettingsUI();
 
-        // Auto load Firebase on startup
         window.addEventListener('load', () => {
             setTimeout(() => manualLoadFirebase(), 500);
         });

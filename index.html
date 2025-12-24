@@ -384,8 +384,8 @@
             <h2>📅 Thêm Lịch Sinh Hoạt</h2>
             <div class="row">
                 <div class="form-group">
-                    <label>Ngày Sinh Hoạt</label>
-                    <input type="date" id="scheduleDate">
+                    <label>Ngày Sinh Hoạt (dd/mm/yyyy)</label>
+                    <input type="text" id="scheduleDate" placeholder="01/12/2025">
                 </div>
                 <div class="form-group" style="grid-column: 1 / -1;">
                     <label>Ghi Chú (tùy chọn)</label>
@@ -411,29 +411,41 @@
             <h3>Cặp 1</h3>
             <div class="row">
                 <div class="form-group">
-                    <label>VĐV 1 - VĐV 2</label>
-                    <select id="pair1">
+                    <label>VĐV 1</label>
+                    <select id="pair1a">
                         <option value="">-- Chọn --</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Tỷ Số</label>
-                    <input type="number" id="score1" placeholder="15" min="0">
+                    <label>VĐV 2</label>
+                    <select id="pair1b">
+                        <option value="">-- Chọn --</option>
+                    </select>
                 </div>
+            </div>
+            <div class="form-group">
+                <label>Tỷ Số</label>
+                <input type="number" id="score1" placeholder="15" min="0">
             </div>
 
             <h3>Cặp 2</h3>
             <div class="row">
                 <div class="form-group">
-                    <label>VĐV 1 - VĐV 2</label>
-                    <select id="pair2">
+                    <label>VĐV 1</label>
+                    <select id="pair2a">
                         <option value="">-- Chọn --</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Tỷ Số</label>
-                    <input type="number" id="score2" placeholder="10" min="0">
+                    <label>VĐV 2</label>
+                    <select id="pair2b">
+                        <option value="">-- Chọn --</option>
+                    </select>
                 </div>
+            </div>
+            <div class="form-group">
+                <label>Tỷ Số</label>
+                <input type="number" id="score2" placeholder="10" min="0">
             </div>
 
             <button class="btn" onclick="addMatch()">➕ Thêm Trận Đấu</button>
@@ -587,17 +599,25 @@
         }
 
         function addSchedule() {
-            const date = document.getElementById('scheduleDate').value;
+            const dateInput = document.getElementById('scheduleDate').value.trim();
             const note = document.getElementById('scheduleNote').value.trim();
-            if (!date) {
-                showNotification('Vui lòng chọn ngày', 'error');
+            if (!dateInput) {
+                showNotification('Vui lòng nhập ngày', 'error');
                 return;
             }
+            const dateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+            const match = dateInput.match(dateRegex);
+            if (!match) {
+                showNotification('Định dạng ngày không hợp lệ (dd/mm/yyyy)', 'error');
+                return;
+            }
+            const [_, day, month, year] = match;
+            const date = `${year}-${month}-${day}`;
             if (schedules.some(s => s.date === date)) {
                 showNotification('Ngày này đã có trong lịch', 'error');
                 return;
             }
-            schedules.push({ id: Date.now(), date, note });
+            schedules.push({ id: Date.now(), date, note, displayDate: dateInput });
             schedules.sort((a, b) => new Date(a.date) - new Date(b.date));
             saveData();
             showNotification('✓ Đã thêm ngày sinh hoạt', 'success');
@@ -621,7 +641,7 @@
 
         function updateScheduleList() {
             const html = schedules.map(s => {
-                const dateStr = new Date(s.date).toLocaleDateString('vi-VN');
+                const dateStr = s.displayDate || new Date(s.date).toLocaleDateString('vi-VN');
                 const matchCount = matches.filter(m => m.date === s.date).length;
                 return `
                     <div class="match-item">
@@ -640,7 +660,7 @@
             const select = document.getElementById('eventDate');
             const value = select.value;
             select.innerHTML = '<option value="">-- Chọn ngày --</option>' +
-                schedules.map(s => `<option value="${s.date}">${new Date(s.date).toLocaleDateString('vi-VN')}${s.note ? ` (${s.note})` : ''}</option>`).join('');
+                schedules.map(s => `<option value="${s.date}">${s.displayDate || new Date(s.date).toLocaleDateString('vi-VN')}${s.note ? ` (${s.note})` : ''}</option>`).join('');
             if (value) select.value = value;
             updatePaymentDropdown();
         }
@@ -649,22 +669,17 @@
             const select = document.getElementById('paymentDate');
             const value = select.value;
             select.innerHTML = '<option value="">-- Chọn ngày --</option>' +
-                schedules.map(s => `<option value="${s.date}">${new Date(s.date).toLocaleDateString('vi-VN')}${s.note ? ` (${s.note})` : ''}</option>`).join('');
+                schedules.map(s => `<option value="${s.date}">${s.displayDate || new Date(s.date).toLocaleDateString('vi-VN')}${s.note ? ` (${s.note})` : ''}</option>`).join('');
             if (value) select.value = value;
         }
 
         function updatePairSelects() {
-            const pairs = [];
-            for (let i = 0; i < members.length; i++) {
-                for (let j = i + 1; j < members.length; j++) {
-                    pairs.push(`${members[i].name} - ${members[j].name}`);
-                }
-            }
-            const selects = ['pair1', 'pair2'];
-            selects.forEach(id => {
+            const playerNames = members.map(m => m.name);
+            const selectIds = ['pair1a', 'pair1b', 'pair2a', 'pair2b'];
+            selectIds.forEach(id => {
                 const elem = document.getElementById(id);
                 const value = elem.value;
-                elem.innerHTML = '<option value="">-- Chọn --</option>' + pairs.map(p => `<option value="${p}">${p}</option>`).join('');
+                elem.innerHTML = '<option value="">-- Chọn --</option>' + playerNames.map(p => `<option value="${p}">${p}</option>`).join('');
                 if (value) elem.value = value;
             });
         }
@@ -675,8 +690,10 @@
 
         function addMatch() {
             const date = document.getElementById('eventDate').value;
-            const pair1 = document.getElementById('pair1').value;
-            const pair2 = document.getElementById('pair2').value;
+            const p1a = document.getElementById('pair1a').value;
+            const p1b = document.getElementById('pair1b').value;
+            const p2a = document.getElementById('pair2a').value;
+            const p2b = document.getElementById('pair2b').value;
             const score1 = parseInt(document.getElementById('score1').value) || 0;
             const score2 = parseInt(document.getElementById('score2').value) || 0;
 
@@ -684,14 +701,18 @@
                 showNotification('Vui lòng chọn ngày sinh hoạt', 'error');
                 return;
             }
-            if (!pair1 || !pair2) {
-                showNotification('Vui lòng chọn cặp đôi', 'error');
+            if (!p1a || !p1b || !p2a || !p2b) {
+                showNotification('Vui lòng chọn đủ 4 VĐV', 'error');
                 return;
             }
-            if (pair1 === pair2) {
-                showNotification('Chọn 2 cặp đôi khác nhau', 'error');
+            const allPlayers = [p1a, p1b, p2a, p2b];
+            if (new Set(allPlayers).size !== 4) {
+                showNotification('Các VĐV không được trùng nhau', 'error');
                 return;
             }
+
+            const pair1 = `${p1a} - ${p1b}`;
+            const pair2 = `${p2a} - ${p2b}`;
 
             matches.push({
                 id: Date.now(),
@@ -708,8 +729,10 @@
             showNotification(`✓ Thêm trận: ${pair1} ${score1} - ${score2} ${pair2}`, 'success');
             document.getElementById('score1').value = '';
             document.getElementById('score2').value = '';
-            document.getElementById('pair1').value = '';
-            document.getElementById('pair2').value = '';
+            document.getElementById('pair1a').value = '';
+            document.getElementById('pair1b').value = '';
+            document.getElementById('pair2a').value = '';
+            document.getElementById('pair2b').value = '';
             updateMatchList();
             updatePaymentList();
             autoSync();

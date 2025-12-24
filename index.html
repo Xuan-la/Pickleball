@@ -151,6 +151,8 @@
         .btn.success:hover { background: #1a8a3a; }
         .btn.danger { background: var(--color-error); }
         .btn.danger:hover { background: #a0121f; }
+        .btn.warning { background: var(--color-warning); }
+        .btn.warning:hover { background: #974325; }
 
         .row {
             display: grid;
@@ -536,21 +538,14 @@
                 <label>
                     <strong>⚠️ Chế Độ Xem (Chỉ Đọc) - Luôn Bật</strong>
                 </label>
-                <p class="info-text" style="margin-top: 8px;">Chế độ xem luôn được bật và đồng bộ với Cloud. Nhập mật khẩu để tắt chế độ xem (5 phút).</p>
-                <button class="btn" style="background: var(--color-warning); margin-top: 12px;" onclick="toggleReadOnlyWithPassword()">🔓 Tắt Chế Độ Xem</button>
+                <p class="info-text" style="margin-top: 8px;">Chế độ xem luôn được bật. Nhập mật khẩu (mặc định: Tayho) để tắt chế độ xem 5 phút.</p>
+                <button class="btn warning" onclick="toggleReadOnlyWithPassword()">🔓 Tắt Chế Độ Xem</button>
             </div>
-
-            <div class="form-group" style="margin-top: 20px;">
-                <label>Thay Đổi Mật Khẩu Admin</label>
-                <input type="password" id="adminPassword" placeholder="Nhập mật khẩu mới">
-            </div>
-
-            <button class="btn" onclick="setAdminPassword()">🔑 Thay Đổi Mật Khẩu</button>
 
             <div class="info-text" style="margin-top: 20px; background: rgba(192, 21, 47, 0.1); padding: 12px; border-radius: 8px;">
                 ⚠️ <strong>Mật Khẩu Mặc Định:</strong> Tayho<br>
                 ⚠️ <strong>Chế Độ Xem:</strong> Luôn bật, tắt 5 phút khi nhập mật khẩu<br>
-                ⚠️ <strong>Đồng Bộ:</strong> Mật khẩu được lưu trên Cloud (tránh ai vào đều sửa được)
+                ⚠️ <strong>Đồng Bộ:</strong> Mật khẩu được lưu trên Cloud Firebase
             </div>
 
             <h3 style="margin-top: 30px;">Trạng Thái Hiện Tại</h3>
@@ -560,7 +555,7 @@
             </div>
             <div class="payment-item">
                 <div class="payment-name">Mật Khẩu</div>
-                <div><span id="pwdStatus" class="money positive">✓ Đã Đặt</span></div>
+                <div><span id="pwdStatus" class="money positive">✓ Tayho</span></div>
             </div>
             <div class="payment-item">
                 <div class="payment-name">Đồng Bộ Cloud</div>
@@ -624,7 +619,7 @@
         function updateSettingsUI() {
             document.getElementById('modeStatus').textContent = '🔒 Chỉ Xem (Bật)';
             document.getElementById('modeStatus').className = 'money negative';
-            document.getElementById('pwdStatus').textContent = '✓ Đã Đặt: ' + adminPassword;
+            document.getElementById('pwdStatus').textContent = '✓ ' + adminPassword;
             document.getElementById('pwdStatus').className = 'money positive';
             document.getElementById('syncStatus2').textContent = '✓ Tự Động';
             document.getElementById('syncStatus2').className = 'money positive';
@@ -634,12 +629,12 @@
             const pwd = prompt('Nhập mật khẩu admin để tắt chế độ xem (5 phút):');
             if (!pwd) return;
             if (pwd !== adminPassword) {
-                showNotification('Mật khẩu sai! Chế độ xem vẫn bật.', 'error');
+                showNotification('❌ Mật khẩu sai!', 'error');
                 return;
             }
             readOnlyMode = false;
             applyReadOnlyMode();
-            showNotification('✓ Chế độ chỉnh sửa đã bật - 5 phút', 'success');
+            showNotification('✅ Chế độ chỉnh sửa đã bật - 5 phút', 'success');
             updateSettingsUI();
             setTimeout(() => {
                 readOnlyMode = true;
@@ -650,30 +645,11 @@
             }, 300000);
         }
 
-        function setAdminPassword() {
-            const newPwd = document.getElementById('adminPassword').value.trim();
-            if (!newPwd) {
-                showNotification('Mật khẩu không được để trống', 'error');
-                return;
-            }
-            const currentPwd = prompt('Nhập mật khẩu hiện tại để xác nhận:');
-            if (currentPwd !== adminPassword) {
-                showNotification('Mật khẩu hiện tại sai!', 'error');
-                return;
-            }
-            localStorage.setItem('adminPassword', newPwd);
-            adminPassword = newPwd;
-            showNotification('✓ Mật khẩu đã thay đổi và đồng bộ', 'success');
-            document.getElementById('adminPassword').value = '';
-            updateSettingsUI();
-            autoSync();
-        }
-
         function applyReadOnlyMode() {
             const disableElements = [
                 'memberName', 'memberType', 'scheduleDate', 'scheduleNote', 
                 'eventDate', 'pair1a', 'pair1b', 'pair2a', 'pair2b', 'score1', 'score2',
-                'paymentDate', 'adminPassword'
+                'paymentDate'
             ];
             
             disableElements.forEach(id => {
@@ -683,7 +659,7 @@
 
             const buttons = document.querySelectorAll('.btn');
             buttons.forEach(btn => {
-                if (!btn.textContent.includes('Firebase') && !btn.textContent.includes('Tải')) {
+                if (!btn.textContent.includes('Firebase') && !btn.textContent.includes('Tải') && !btn.textContent.includes('Tắt')) {
                     btn.disabled = readOnlyMode;
                     btn.style.opacity = readOnlyMode ? '0.5' : '1';
                     btn.style.cursor = readOnlyMode ? 'not-allowed' : 'pointer';
@@ -1198,7 +1174,6 @@
         }
 
         window.toggleReadOnlyWithPassword = toggleReadOnlyWithPassword;
-        window.setAdminPassword = setAdminPassword;
         window.manualSaveFirebase = manualSaveFirebase;
         window.manualLoadFirebase = manualLoadFirebase;
         window.switchTab = switchTab;

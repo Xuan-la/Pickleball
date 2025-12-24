@@ -534,41 +534,44 @@
             <h2>🔐 Cài Đặt Bảo Mật</h2>
             <div class="form-group">
                 <label>
-                    <input type="checkbox" id="readOnlyMode" onchange="toggleReadOnly()">
-                    <strong>Chế Độ Xem (Chỉ Đọc)</strong>
+                    <strong>⚠️ Chế Độ Xem (Chỉ Đọc) - Luôn Bật</strong>
                 </label>
-                <p class="info-text" style="margin-top: 8px;">Khi bật: Khóa tất cả chức năng thêm/sửa/xóa. Chỉ xem dữ liệu.</p>
+                <p class="info-text" style="margin-top: 8px;">Chế độ xem luôn được bật và đồng bộ với Cloud. Nhập mật khẩu để tắt chế độ xem (5 phút).</p>
+                <button class="btn" style="background: var(--color-warning); margin-top: 12px;" onclick="toggleReadOnlyWithPassword()">🔓 Tắt Chế Độ Xem</button>
             </div>
 
             <div class="form-group" style="margin-top: 20px;">
-                <label>Mật Khẩu Admin (tùy chọn)</label>
-                <input type="password" id="adminPassword" placeholder="Để trống nếu không cần">
+                <label>Thay Đổi Mật Khẩu Admin</label>
+                <input type="password" id="adminPassword" placeholder="Nhập mật khẩu mới">
             </div>
 
-            <button class="btn" onclick="setAdminPassword()">💾 Lưu Mật Khẩu</button>
+            <button class="btn" onclick="setAdminPassword()">🔑 Thay Đổi Mật Khẩu</button>
 
             <div class="info-text" style="margin-top: 20px; background: rgba(192, 21, 47, 0.1); padding: 12px; border-radius: 8px;">
-                ⚠️ <strong>Chế Độ Xem:</strong> Người khác chỉ có thể xem, không thể thêm/xóa/sửa<br>
-                ⚠️ <strong>Mật Khẩu:</strong> Bảo vệ khi tắt chế độ xem (nếu có)<br>
-                ⚠️ <strong>Lưu ý:</strong> Mật khẩu được lưu trên máy này, không phải cloud
+                ⚠️ <strong>Mật Khẩu Mặc Định:</strong> Tayho<br>
+                ⚠️ <strong>Chế Độ Xem:</strong> Luôn bật, tắt 5 phút khi nhập mật khẩu<br>
+                ⚠️ <strong>Đồng Bộ:</strong> Mật khẩu được lưu trên Cloud (tránh ai vào đều sửa được)
             </div>
 
             <h3 style="margin-top: 30px;">Trạng Thái Hiện Tại</h3>
             <div class="payment-item">
                 <div class="payment-name">Chế Độ</div>
-                <div><span id="modeStatus" class="money positive">Chỉnh Sửa</span></div>
+                <div><span id="modeStatus" class="money negative">🔒 Chỉ Xem (Bật)</span></div>
             </div>
             <div class="payment-item">
                 <div class="payment-name">Mật Khẩu</div>
-                <div><span id="pwdStatus" class="money negative">Chưa Đặt</span></div>
+                <div><span id="pwdStatus" class="money positive">✓ Đã Đặt</span></div>
+            </div>
+            <div class="payment-item">
+                <div class="payment-name">Đồng Bộ Cloud</div>
+                <div><span id="syncStatus2" class="money positive">✓ Tự Động</span></div>
             </div>
         </div>
 
         <!-- Tab Backup -->
         <div id="backup" class="tab-content">
             <h2>💾 Sao Lưu & Đồng Bộ</h2>
-            <button class="btn success" onclick="toggleAutoSync()" id="autoSyncBtn">🔄 Tự Động Đồng Bộ Firebase</button>
-            <button class="btn" onclick="manualSaveFirebase()">💾 Lưu Lên Firebase Ngay</button>
+            <button class="btn success" onclick="manualSaveFirebase()">💾 Lưu Lên Firebase Ngay</button>
             <button class="btn" onclick="manualLoadFirebase()">📥 Tải Từ Firebase</button>
             <button class="btn" onclick="exportData()">📥 Tải Về (JSON)</button>
             <button class="btn danger" onclick="clearAllData()">🗑️ Xóa Tất Cả</button>
@@ -602,9 +605,8 @@
         let members = JSON.parse(localStorage.getItem('members')) || [];
         let schedules = JSON.parse(localStorage.getItem('schedules')) || [];
         let matches = JSON.parse(localStorage.getItem('matches')) || [];
-        let autoSyncEnabled = JSON.parse(localStorage.getItem('autoSyncEnabled')) !== false;
-        let readOnlyMode = JSON.parse(localStorage.getItem('readOnlyMode')) || false;
-        let adminPassword = localStorage.getItem('adminPassword') || null;
+        let readOnlyMode = true;
+        let adminPassword = localStorage.getItem('adminPassword') || 'Tayho';
 
         function switchTab(event, tabName) {
             document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
@@ -620,43 +622,51 @@
         }
 
         function updateSettingsUI() {
-            document.getElementById('readOnlyMode').checked = readOnlyMode;
-            document.getElementById('modeStatus').textContent = readOnlyMode ? 'Chỉ Xem' : 'Chỉnh Sửa';
-            document.getElementById('modeStatus').className = readOnlyMode ? 'money negative' : 'money positive';
-            document.getElementById('pwdStatus').textContent = adminPassword ? 'Đã Đặt' : 'Chưa Đặt';
-            document.getElementById('pwdStatus').className = adminPassword ? 'money positive' : 'money negative';
+            document.getElementById('modeStatus').textContent = '🔒 Chỉ Xem (Bật)';
+            document.getElementById('modeStatus').className = 'money negative';
+            document.getElementById('pwdStatus').textContent = '✓ Đã Đặt: ' + adminPassword;
+            document.getElementById('pwdStatus').className = 'money positive';
+            document.getElementById('syncStatus2').textContent = '✓ Tự Động';
+            document.getElementById('syncStatus2').className = 'money positive';
         }
 
-        function toggleReadOnly() {
-            const checkbox = document.getElementById('readOnlyMode');
-            if (checkbox.checked && adminPassword) {
-                const pwd = prompt('Nhập mật khẩu admin để bật chế độ xem:');
-                if (pwd !== adminPassword) {
-                    showNotification('Mật khẩu sai!', 'error');
-                    checkbox.checked = false;
-                    return;
-                }
+        function toggleReadOnlyWithPassword() {
+            const pwd = prompt('Nhập mật khẩu admin để tắt chế độ xem (5 phút):');
+            if (!pwd) return;
+            if (pwd !== adminPassword) {
+                showNotification('Mật khẩu sai! Chế độ xem vẫn bật.', 'error');
+                return;
             }
-            readOnlyMode = checkbox.checked;
-            localStorage.setItem('readOnlyMode', readOnlyMode);
+            readOnlyMode = false;
             applyReadOnlyMode();
-            showNotification(readOnlyMode ? '✓ Chế độ xem đã bật' : '✓ Chế độ chỉnh sửa đã bật', 'success');
+            showNotification('✓ Chế độ chỉnh sửa đã bật - 5 phút', 'success');
             updateSettingsUI();
+            setTimeout(() => {
+                readOnlyMode = true;
+                applyReadOnlyMode();
+                showNotification('⏱️ Quay lại chế độ xem', 'info');
+                updateSettingsUI();
+                autoSync();
+            }, 300000);
         }
 
         function setAdminPassword() {
-            const pwd = document.getElementById('adminPassword').value.trim();
-            if (!pwd) {
-                localStorage.removeItem('adminPassword');
-                adminPassword = null;
-                showNotification('✓ Mật khẩu đã xóa', 'success');
-            } else {
-                localStorage.setItem('adminPassword', pwd);
-                adminPassword = pwd;
-                showNotification('✓ Mật khẩu đã lưu', 'success');
+            const newPwd = document.getElementById('adminPassword').value.trim();
+            if (!newPwd) {
+                showNotification('Mật khẩu không được để trống', 'error');
+                return;
             }
+            const currentPwd = prompt('Nhập mật khẩu hiện tại để xác nhận:');
+            if (currentPwd !== adminPassword) {
+                showNotification('Mật khẩu hiện tại sai!', 'error');
+                return;
+            }
+            localStorage.setItem('adminPassword', newPwd);
+            adminPassword = newPwd;
+            showNotification('✓ Mật khẩu đã thay đổi và đồng bộ', 'success');
             document.getElementById('adminPassword').value = '';
             updateSettingsUI();
+            autoSync();
         }
 
         function applyReadOnlyMode() {
@@ -673,7 +683,7 @@
 
             const buttons = document.querySelectorAll('.btn');
             buttons.forEach(btn => {
-                if (!btn.id.includes('autoSyncBtn') && !btn.textContent.includes('Firebase') && !btn.textContent.includes('Tải')) {
+                if (!btn.textContent.includes('Firebase') && !btn.textContent.includes('Tải')) {
                     btn.disabled = readOnlyMode;
                     btn.style.opacity = readOnlyMode ? '0.5' : '1';
                     btn.style.cursor = readOnlyMode ? 'not-allowed' : 'pointer';
@@ -1046,31 +1056,47 @@
                 const [p2a, p2b] = m.pair2.split(' - ').map(x => x.trim());
 
                 if (m.result1 === 'win') {
-                    playerScore[p1a] = (playerScore[p1a] || { score: 0, wins: 0, losses: 0 });
-                    playerScore[p1b] = (playerScore[p1b] || { score: 0, wins: 0, losses: 0 });
+                    playerScore[p1a] = (playerScore[p1a] || { score: 0, wins: 0, losses: 0, totalScore1: 0, totalScore2: 0 });
+                    playerScore[p1b] = (playerScore[p1b] || { score: 0, wins: 0, losses: 0, totalScore1: 0, totalScore2: 0 });
                     playerScore[p1a].score += 1;
                     playerScore[p1b].score += 1;
                     playerScore[p1a].wins++;
                     playerScore[p1b].wins++;
-                    playerScore[p2a] = (playerScore[p2a] || { score: 0, wins: 0, losses: 0 });
-                    playerScore[p2b] = (playerScore[p2b] || { score: 0, wins: 0, losses: 0 });
+                    playerScore[p1a].totalScore1 += m.score1;
+                    playerScore[p1b].totalScore1 += m.score1;
+                    playerScore[p1a].totalScore2 += m.score2;
+                    playerScore[p1b].totalScore2 += m.score2;
+                    playerScore[p2a] = (playerScore[p2a] || { score: 0, wins: 0, losses: 0, totalScore1: 0, totalScore2: 0 });
+                    playerScore[p2b] = (playerScore[p2b] || { score: 0, wins: 0, losses: 0, totalScore1: 0, totalScore2: 0 });
                     playerScore[p2a].score -= 1;
                     playerScore[p2b].score -= 1;
                     playerScore[p2a].losses++;
                     playerScore[p2b].losses++;
+                    playerScore[p2a].totalScore1 += m.score2;
+                    playerScore[p2b].totalScore1 += m.score2;
+                    playerScore[p2a].totalScore2 += m.score1;
+                    playerScore[p2b].totalScore2 += m.score1;
                 } else {
-                    playerScore[p2a] = (playerScore[p2a] || { score: 0, wins: 0, losses: 0 });
-                    playerScore[p2b] = (playerScore[p2b] || { score: 0, wins: 0, losses: 0 });
+                    playerScore[p2a] = (playerScore[p2a] || { score: 0, wins: 0, losses: 0, totalScore1: 0, totalScore2: 0 });
+                    playerScore[p2b] = (playerScore[p2b] || { score: 0, wins: 0, losses: 0, totalScore1: 0, totalScore2: 0 });
                     playerScore[p2a].score += 1;
                     playerScore[p2b].score += 1;
                     playerScore[p2a].wins++;
                     playerScore[p2b].wins++;
-                    playerScore[p1a] = (playerScore[p1a] || { score: 0, wins: 0, losses: 0 });
-                    playerScore[p1b] = (playerScore[p1b] || { score: 0, wins: 0, losses: 0 });
+                    playerScore[p2a].totalScore1 += m.score2;
+                    playerScore[p2b].totalScore1 += m.score2;
+                    playerScore[p2a].totalScore2 += m.score1;
+                    playerScore[p2b].totalScore2 += m.score1;
+                    playerScore[p1a] = (playerScore[p1a] || { score: 0, wins: 0, losses: 0, totalScore1: 0, totalScore2: 0 });
+                    playerScore[p1b] = (playerScore[p1b] || { score: 0, wins: 0, losses: 0, totalScore1: 0, totalScore2: 0 });
                     playerScore[p1a].score -= 1;
                     playerScore[p1b].score -= 1;
                     playerScore[p1a].losses++;
                     playerScore[p1b].losses++;
+                    playerScore[p1a].totalScore1 += m.score1;
+                    playerScore[p1b].totalScore1 += m.score1;
+                    playerScore[p1a].totalScore2 += m.score2;
+                    playerScore[p1b].totalScore2 += m.score2;
                 }
             });
 
@@ -1082,21 +1108,31 @@
                 return;
             }
 
-            tbody.innerHTML = sorted.map(([name, data], i) => `
-                <tr>
-                    <td><span class="rank-badge ${i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : ''}">${i + 1}</span></td>
-                    <td>${name}</td>
-                    <td>${data.wins}/${data.losses}</td>
-                    <td><span class="money ${data.score >= 0 ? 'positive' : 'negative'}">${data.score >= 0 ? '+' : ''}${data.score}đ</span></td>
-                    <td><span class="money ${data.score >= 0 ? 'positive' : 'negative'}">${data.score >= 0 ? '+' : ''}${data.score}</span></td>
-                </tr>
-            `).join('');
+            tbody.innerHTML = sorted.map(([name, data], i) => {
+                const scoreDiff = data.totalScore1 - data.totalScore2;
+                return `
+                    <tr>
+                        <td><span class="rank-badge ${i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : ''}">${i + 1}</span></td>
+                        <td>${name}</td>
+                        <td>${data.wins}/${data.losses}</td>
+                        <td><span class="money ${data.score >= 0 ? 'positive' : 'negative'}">${data.score >= 0 ? '+' : ''}${data.score}đ</span></td>
+                        <td><span class="money ${scoreDiff >= 0 ? 'positive' : 'negative'}">${scoreDiff >= 0 ? '+' : ''}${scoreDiff}</span></td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         async function manualSaveFirebase() {
             setSyncLoading(true);
             try {
-                await set(ref(database, 'pickleball'), { members, schedules, matches, lastSync: new Date().toISOString() });
+                await set(ref(database, 'pickleball'), { 
+                    members, 
+                    schedules, 
+                    matches, 
+                    adminPassword,
+                    readOnlyMode: true,
+                    lastSync: new Date().toISOString() 
+                });
                 setSyncLoading(false);
                 showNotification('✅ Lưu Firebase thành công!', 'success');
             } catch (e) {
@@ -1114,12 +1150,16 @@
                     members = data.members || [];
                     schedules = data.schedules || [];
                     matches = data.matches || [];
+                    adminPassword = data.adminPassword || 'Tayho';
+                    localStorage.setItem('adminPassword', adminPassword);
                     saveData();
                     updateMembersList();
                     updatePairSelects();
                     updateScheduleList();
                     updateScheduleSelects();
                     updateMatchList();
+                    applyReadOnlyMode();
+                    updateSettingsUI();
                     setSyncLoading(false);
                     showNotification('✅ Tải Firebase thành công!', 'success');
                 } else {
@@ -1133,9 +1173,15 @@
         }
 
         async function autoSync() {
-            if (!autoSyncEnabled) return;
             try {
-                await set(ref(database, 'pickleball'), { members, schedules, matches, lastSync: new Date().toISOString() });
+                await set(ref(database, 'pickleball'), { 
+                    members, 
+                    schedules, 
+                    matches, 
+                    adminPassword,
+                    readOnlyMode: true,
+                    lastSync: new Date().toISOString() 
+                });
             } catch (e) {}
         }
 
@@ -1151,18 +1197,8 @@
             }
         }
 
-        window.toggleAutoSync = function() {
-            autoSyncEnabled = !autoSyncEnabled;
-            localStorage.setItem('autoSyncEnabled', autoSyncEnabled);
-            const btn = document.getElementById('autoSyncBtn');
-            btn.textContent = autoSyncEnabled ? '✅ Tự Động Đồng Bộ (BẬT)' : '⭕ Tự Động Đồng Bộ (TẮT)';
-            showNotification(autoSyncEnabled ? 'Đã bật tự động đồng bộ' : 'Đã tắt tự động đồng bộ', 'success');
-            if (autoSyncEnabled) autoSync();
-        };
-
-        window.toggleReadOnly = toggleReadOnly;
+        window.toggleReadOnlyWithPassword = toggleReadOnlyWithPassword;
         window.setAdminPassword = setAdminPassword;
-
         window.manualSaveFirebase = manualSaveFirebase;
         window.manualLoadFirebase = manualLoadFirebase;
         window.switchTab = switchTab;
@@ -1200,6 +1236,7 @@
             document.getElementById('rankingSkillBody').innerHTML = '<tr><td colspan="4" class="empty-state">Chưa có dữ liệu</td></tr>';
             document.getElementById('rankingScoreBody').innerHTML = '<tr><td colspan="5" class="empty-state">Chưa có dữ liệu</td></tr>';
             showNotification('Đã xóa tất cả', 'success');
+            autoSync();
         };
 
         function showNotification(message, type = 'info') {
@@ -1222,12 +1259,12 @@
         updateScheduleList();
         updateScheduleSelects();
         updateMatchList();
-        document.getElementById('autoSyncBtn').textContent = autoSyncEnabled ? '✅ Tự Động Đồng Bộ (BẬT)' : '⭕ Tự Động Đồng Bộ (TẮT)';
         applyReadOnlyMode();
+        updateSettingsUI();
 
         // Auto load Firebase on startup
         window.addEventListener('load', () => {
-            if (autoSyncEnabled) setTimeout(() => manualLoadFirebase(), 500);
+            setTimeout(() => manualLoadFirebase(), 500);
         });
     </script>
 </body>

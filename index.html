@@ -354,6 +354,7 @@
             <button class="tab-btn" onclick="switchTab(event, 'payment')">💳 Tiền</button>
             <button class="tab-btn" onclick="switchTab(event, 'ranking-money')">💰 BXH Tiền</button>
             <button class="tab-btn" onclick="switchTab(event, 'ranking-skill')">⭐ BXH Trình</button>
+            <button class="tab-btn" onclick="switchTab(event, 'ranking-score')">🏆 BXH Điểm</button>
             <button class="tab-btn" onclick="switchTab(event, 'backup')">💾 Backup</button>
             <button class="tab-btn" onclick="switchTab(event, 'settings')">🔐 Cài Đặt</button>
         </div>
@@ -507,6 +508,27 @@
             </table>
         </div>
 
+        <!-- Tab BXH Điểm Số -->
+        <div id="ranking-score" class="tab-content">
+            <h2>🏆 Bảng Xếp Hạng Điểm Số</h2>
+            <table class="ranking-table">
+                <thead>
+                    <tr>
+                        <th>Hạng</th>
+                        <th>Tên VĐV</th>
+                        <th>W/L</th>
+                        <th>Điểm</th>
+                        <th>Hiệu Số</th>
+                    </tr>
+                </thead>
+                <tbody id="rankingScoreBody">
+                    <tr>
+                        <td colspan="5" class="empty-state" style="padding: 40px 20px;">Chưa có dữ liệu</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
         <!-- Tab Cài Đặt -->
         <div id="settings" class="tab-content">
             <h2>🔐 Cài Đặt Bảo Mật</h2>
@@ -592,6 +614,7 @@
 
             if (tabName === 'ranking-money') updateRankingMoney();
             else if (tabName === 'ranking-skill') updateRankingSkill();
+            else if (tabName === 'ranking-score') updateRankingScore();
             else if (tabName === 'payment') updatePaymentDropdown();
             else if (tabName === 'settings') updateSettingsUI();
         }
@@ -1015,6 +1038,61 @@
             }).join('');
         }
 
+        function updateRankingScore() {
+            const playerScore = {};
+
+            matches.forEach(m => {
+                const [p1a, p1b] = m.pair1.split(' - ').map(x => x.trim());
+                const [p2a, p2b] = m.pair2.split(' - ').map(x => x.trim());
+
+                if (m.result1 === 'win') {
+                    playerScore[p1a] = (playerScore[p1a] || { score: 0, wins: 0, losses: 0 });
+                    playerScore[p1b] = (playerScore[p1b] || { score: 0, wins: 0, losses: 0 });
+                    playerScore[p1a].score += 1;
+                    playerScore[p1b].score += 1;
+                    playerScore[p1a].wins++;
+                    playerScore[p1b].wins++;
+                    playerScore[p2a] = (playerScore[p2a] || { score: 0, wins: 0, losses: 0 });
+                    playerScore[p2b] = (playerScore[p2b] || { score: 0, wins: 0, losses: 0 });
+                    playerScore[p2a].score -= 1;
+                    playerScore[p2b].score -= 1;
+                    playerScore[p2a].losses++;
+                    playerScore[p2b].losses++;
+                } else {
+                    playerScore[p2a] = (playerScore[p2a] || { score: 0, wins: 0, losses: 0 });
+                    playerScore[p2b] = (playerScore[p2b] || { score: 0, wins: 0, losses: 0 });
+                    playerScore[p2a].score += 1;
+                    playerScore[p2b].score += 1;
+                    playerScore[p2a].wins++;
+                    playerScore[p2b].wins++;
+                    playerScore[p1a] = (playerScore[p1a] || { score: 0, wins: 0, losses: 0 });
+                    playerScore[p1b] = (playerScore[p1b] || { score: 0, wins: 0, losses: 0 });
+                    playerScore[p1a].score -= 1;
+                    playerScore[p1b].score -= 1;
+                    playerScore[p1a].losses++;
+                    playerScore[p1b].losses++;
+                }
+            });
+
+            const sorted = Object.entries(playerScore).sort((a, b) => b[1].score - a[1].score);
+            const tbody = document.getElementById('rankingScoreBody');
+
+            if (sorted.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Chưa có dữ liệu</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = sorted.map(([name, data], i) => `
+                <tr>
+                    <td><span class="rank-badge ${i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : ''}">${i + 1}</span></td>
+                    <td>${name}</td>
+                    <td>${data.wins}/${data.losses}</td>
+                    <td><span class="money ${data.score >= 0 ? 'positive' : 'negative'}">${data.score >= 0 ? '+' : ''}${data.score}đ</span></td>
+                    <td><span class="money ${data.score >= 0 ? 'positive' : 'negative'}">${data.score >= 0 ? '+' : ''}${data.score}</span></td>
+                </tr>
+            `).join('');
+        }
+
         async function manualSaveFirebase() {
             setSyncLoading(true);
             try {
@@ -1120,6 +1198,7 @@
             document.getElementById('paymentList').innerHTML = '';
             document.getElementById('rankingMoneyBody').innerHTML = '<tr><td colspan="4" class="empty-state">Chưa có dữ liệu</td></tr>';
             document.getElementById('rankingSkillBody').innerHTML = '<tr><td colspan="4" class="empty-state">Chưa có dữ liệu</td></tr>';
+            document.getElementById('rankingScoreBody').innerHTML = '<tr><td colspan="5" class="empty-state">Chưa có dữ liệu</td></tr>';
             showNotification('Đã xóa tất cả', 'success');
         };
 

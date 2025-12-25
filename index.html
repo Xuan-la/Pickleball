@@ -834,26 +834,8 @@
         }
 
         function updatePaymentDropdown() {
-            // Gọi updateScheduleSelects để sync cả 2 dropdown
             updateScheduleSelects();
         }
-
-        // Init
-        updateMembersList();
-        updatePairSelects();
-        updateScheduleList();
-        updateScheduleSelects();
-        updateMatchList();
-        document.getElementById('autoSyncBtn').textContent = '✅ Tự Động Đồng Bộ (BẬT)';
-        applyReadOnlyMode();
-        updateSettingsUI();
-
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                manualLoadFirebase();
-                updateScheduleSelects(); // Đảm bảo dropdown được update sau khi load Firebase
-            }, 500);
-        });
 
         function updatePairSelects() {
             const playerNames = members.map(m => m.name);
@@ -1245,7 +1227,6 @@
 
         window.toggleReadOnly = toggleReadOnlyWithPassword;
         window.setAdminPassword = setAdminPassword;
-
         window.manualSaveFirebase = manualSaveFirebase;
         window.manualLoadFirebase = manualLoadFirebase;
         window.switchTab = switchTab;
@@ -1257,6 +1238,7 @@
         window.addMatch = addMatch;
         window.deleteMatch = deleteMatch;
         window.updatePaymentList = updatePaymentList;
+        window.updateScheduleSelects = updateScheduleSelects;
 
         window.exportData = function() {
             const data = JSON.stringify({ members, schedules, matches }, null, 2);
@@ -1299,7 +1281,6 @@
             localStorage.setItem('matches', JSON.stringify(matches));
         }
 
-        // Init
         updateMembersList();
         updatePairSelects();
         updateScheduleList();
@@ -1309,7 +1290,6 @@
         applyReadOnlyMode();
         updateSettingsUI();
 
-        // Auto load Firebase on startup
         window.addEventListener('load', () => {
             setTimeout(() => manualLoadFirebase(), 500);
         });

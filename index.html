@@ -151,6 +151,8 @@
         .btn.success:hover { background: #1a8a3a; }
         .btn.danger { background: var(--color-error); }
         .btn.danger:hover { background: #a0121f; }
+        .btn.warning { background: var(--color-warning); }
+        .btn.warning:hover { background: #974325; }
 
         .row {
             display: grid;
@@ -396,7 +398,7 @@
             </div>
             <button class="btn" onclick="addSchedule()">📅 Thêm Ngày</button>
 
-            <h2>Danh Sách Lịch Sinh Hoạt (Mới nhất trên cùng)</h2>
+            <h2>Danh Sách Lịch Sinh Hoạt</h2>
             <div class="member-list" id="scheduleList"></div>
         </div>
 
@@ -405,7 +407,7 @@
             <h2>🎾 Ghi Lại Trận Đấu</h2>
             <div class="form-group">
                 <label>Chọn Ngày Sinh Hoạt</label>
-                <select id="eventDate">
+                <select id="eventDate" onchange="updateMatchForm()">
                     <option value="">-- Chọn ngày --</option>
                 </select>
             </div>
@@ -461,7 +463,7 @@
             <h2>💳 Bảng Tính Tiền</h2>
             <div class="form-group">
                 <label>Chọn Ngày Sinh Hoạt</label>
-                <select id="paymentDate">
+                <select id="paymentDate" onchange="updatePaymentList()">
                     <option value="">-- Chọn ngày --</option>
                 </select>
             </div>
@@ -536,31 +538,19 @@
                 <label>
                     <strong>⚠️ Chế Độ Xem (Chỉ Đọc) - Luôn Bật</strong>
                 </label>
-                <p class="info-text" style="margin-top: 8px;">Chế độ xem luôn được bật và đồng bộ với Cloud. Nhập mật khẩu để tắt chế độ xem.</p>
-                <button class="btn" style="background: var(--color-warning); margin-top: 12px;" onclick="toggleReadOnlyWithPassword()">🔓 Tắt Chế Độ Xem</button>
+                <p class="info-text" style="margin-top: 8px;">Chế độ xem luôn bật. Nhập mật khẩu để tạm tắt trong 5 phút.</p>
+                <button class="btn warning" onclick="toggleReadOnlyWithPassword()">🔓 Tắt Chế Độ Xem (5 phút)</button>
             </div>
-
-            <div class="form-group" style="margin-top: 20px;">
-                <label>Thay Đổi Mật Khẩu Admin</label>
-                <input type="password" id="adminPassword" placeholder="Nhập mật khẩu mới">
-            </div>
-
-            <button class="btn" onclick="setAdminPassword()">🔑 Thay Đổi Mật Khẩu</button>
 
             <div class="info-text" style="margin-top: 20px; background: rgba(192, 21, 47, 0.1); padding: 12px; border-radius: 8px;">
-                ⚠️ <strong>Chế Độ Xem:</strong> Người khác chỉ có thể xem, không thể thêm/xóa/sửa<br>
-                ⚠️ <strong>Mật Khẩu:</strong> Bảo vệ khi tắt chế độ xem (nếu có)<br>
-                ⚠️ <strong>Lưu ý:</strong> Mật khẩu được lưu trên máy này, không phải cloud
+                ⚠️ <strong>Chế Độ Xem:</strong> Khi bật, chỉ khóa nút Thêm / Ghi / Xóa<br>
+                ⚠️ <strong>Mật Khẩu:</strong> Được lưu và đồng bộ trên Cloud Firebase
             </div>
 
             <h3 style="margin-top: 30px;">Trạng Thái Hiện Tại</h3>
             <div class="payment-item">
                 <div class="payment-name">Chế Độ</div>
                 <div><span id="modeStatus" class="money negative">🔒 Chỉ Xem (Bật)</span></div>
-            </div>
-            <div class="payment-item">
-                <div class="payment-name">Mật Khẩu</div>
-                <div><span id="pwdStatus" class="money positive">✓ Đã Đặt</span></div>
             </div>
             <div class="payment-item">
                 <div class="payment-name">Đồng Bộ Cloud</div>
@@ -585,6 +575,7 @@
         </div>
     </div>
 
+    <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
         import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
@@ -605,6 +596,7 @@
         let members = JSON.parse(localStorage.getItem('members')) || [];
         let schedules = JSON.parse(localStorage.getItem('schedules')) || [];
         let matches = JSON.parse(localStorage.getItem('matches')) || [];
+        let autoSyncEnabled = true;
         let readOnlyMode = true;
         let adminPassword = localStorage.getItem('adminPassword') || 'Tayho';
 
@@ -617,73 +609,59 @@
             if (tabName === 'ranking-money') updateRankingMoney();
             else if (tabName === 'ranking-skill') updateRankingSkill();
             else if (tabName === 'ranking-score') updateRankingScore();
+            else if (tabName === 'payment') updatePaymentDropdown();
             else if (tabName === 'settings') updateSettingsUI();
         }
 
         function updateSettingsUI() {
-            document.getElementById('modeStatus').textContent = readOnlyMode ? '🔒 Chỉ Xem (Bật)' : '✅ Chỉnh Sửa (Mở)';
+            document.getElementById('modeStatus').textContent = readOnlyMode ? '🔒 Chỉ Xem (Bật)' : '✏️ Chỉnh Sửa (Tạm thời)';
             document.getElementById('modeStatus').className = readOnlyMode ? 'money negative' : 'money positive';
-            document.getElementById('pwdStatus').textContent = '✓ Đã Đặt: ' + adminPassword;
             document.getElementById('syncStatus2').textContent = '✓ Tự Động';
+            document.getElementById('syncStatus2').className = 'money positive';
         }
 
         function toggleReadOnlyWithPassword() {
-            const pwd = prompt('Nhập mật khẩu admin để tắt chế độ xem:');
+            const pwd = prompt('Nhập mật khẩu admin để tắt chế độ xem (5 phút):');
             if (!pwd) return;
             if (pwd !== adminPassword) {
-                showNotification('Mật khẩu sai! Chế độ xem vẫn bật.', 'error');
+                showNotification('Mật khẩu sai!', 'error');
                 return;
             }
             readOnlyMode = false;
             applyReadOnlyMode();
-            showNotification('✓ Chế độ chỉnh sửa đã bật - 5 phút', 'success');
             updateSettingsUI();
+            showNotification('✓ Chế độ chỉnh sửa đã bật trong 5 phút', 'success');
             setTimeout(() => {
                 readOnlyMode = true;
                 applyReadOnlyMode();
-                showNotification('⏱️ Quay lại chế độ xem', 'info');
                 updateSettingsUI();
+                showNotification('⏱️ Đã quay lại chế độ chỉ xem', 'info');
+                autoSync();
             }, 300000);
         }
 
-        function setAdminPassword() {
-            const newPwd = document.getElementById('adminPassword').value.trim();
-            if (!newPwd) {
-                showNotification('Mật khẩu không được để trống', 'error');
-                return;
-            }
-            const currentPwd = prompt('Nhập mật khẩu hiện tại để xác nhận:');
-            if (currentPwd !== adminPassword) {
-                showNotification('Mật khẩu hiện tại sai!', 'error');
-                return;
-            }
-            localStorage.setItem('adminPassword', newPwd);
-            adminPassword = newPwd;
-            showNotification('✓ Mật khẩu đã thay đổi', 'success');
-            document.getElementById('adminPassword').value = '';
-            updateSettingsUI();
-            autoSync();
-        }
-
         function applyReadOnlyMode() {
-            const buttonSelectors = ['.btn:not(#autoSyncBtn)', '.delete-btn'];
-            const inputSelectors = ['#memberName', '#scheduleDate', '#scheduleNote', '#score1', '#score2', '#adminPassword'];
-            
-            // Chỉ khóa inputs và buttons, KHÔNG khóa selects
-            inputSelectors.forEach(sel => {
-                const elem = document.querySelector(sel);
-                if (elem) elem.disabled = readOnlyMode;
-            });
+            // Chế độ xem: chỉ khóa nút hành động, KHÔNG khóa select / input ngày
+            const disableButtonsText = ['Thêm', 'Ghi', 'Xóa'];
+            const buttons = document.querySelectorAll('.btn');
 
-            buttonSelectors.forEach(sel => {
-                document.querySelectorAll(sel).forEach(btn => {
-                    if (btn.textContent.includes('Firebase') || btn.textContent.includes('Tải') || btn.textContent.includes('Xóa Tất')) {
-                        return; // Bỏ qua các button backup
-                    }
+            buttons.forEach(btn => {
+                const text = btn.textContent || '';
+                const isAction =
+                    disableButtonsText.some(t => text.includes(t)) &&
+                    !text.includes('Tải') && !text.includes('Firebase');
+                if (isAction) {
                     btn.disabled = readOnlyMode;
                     btn.style.opacity = readOnlyMode ? '0.5' : '1';
                     btn.style.cursor = readOnlyMode ? 'not-allowed' : 'pointer';
-                });
+                }
+            });
+
+            const deleteButtons = document.querySelectorAll('.delete-btn');
+            deleteButtons.forEach(btn => {
+                btn.disabled = readOnlyMode;
+                btn.style.opacity = readOnlyMode ? '0.5' : '1';
+                btn.style.cursor = readOnlyMode ? 'not-allowed' : 'pointer';
             });
         }
 
@@ -748,7 +726,7 @@
                 return;
             }
             schedules.push({ id: Date.now(), date, note, displayDate: dateInput });
-            schedules.sort((a, b) => new Date(b.date) - new Date(a.date)); // Sắp xếp DESC (mới trước)
+            schedules.sort((a, b) => new Date(a.date) - new Date(b.date));
             saveData();
             showNotification('✓ Đã thêm ngày sinh hoạt', 'success');
             document.getElementById('scheduleDate').value = '';
@@ -770,8 +748,7 @@
         }
 
         function updateScheduleList() {
-            const sortedSchedules = [...schedules].sort((a, b) => new Date(b.date) - new Date(a.date)); // Mới nhất trên cùng
-            const html = sortedSchedules.map(s => {
+            const html = schedules.map(s => {
                 const dateStr = s.displayDate || new Date(s.date).toLocaleDateString('vi-VN');
                 const matchCount = matches.filter(m => m.date === s.date).length;
                 return `
@@ -788,14 +765,20 @@
         }
 
         function updateScheduleSelects() {
-            const selectEventDate = document.getElementById('eventDate');
-            const selectPaymentDate = document.getElementById('paymentDate');
-            
-            const optionsHtml = '<option value="">-- Chọn ngày --</option>' +
+            const select = document.getElementById('eventDate');
+            const value = select.value;
+            select.innerHTML = '<option value="">-- Chọn ngày --</option>' +
                 schedules.map(s => `<option value="${s.date}">${s.displayDate || new Date(s.date).toLocaleDateString('vi-VN')}${s.note ? ` (${s.note})` : ''}</option>`).join('');
-            
-            selectEventDate.innerHTML = optionsHtml;
-            selectPaymentDate.innerHTML = optionsHtml;
+            if (value) select.value = value;
+            updatePaymentDropdown();
+        }
+
+        function updatePaymentDropdown() {
+            const select = document.getElementById('paymentDate');
+            const value = select.value;
+            select.innerHTML = '<option value="">-- Chọn ngày --</option>' +
+                schedules.map(s => `<option value="${s.date}">${s.displayDate || new Date(s.date).toLocaleDateString('vi-VN')}${s.note ? ` (${s.note})` : ''}</option>`).join('');
+            if (value) select.value = value;
         }
 
         function updatePairSelects() {
@@ -803,8 +786,14 @@
             const selectIds = ['pair1a', 'pair1b', 'pair2a', 'pair2b'];
             selectIds.forEach(id => {
                 const elem = document.getElementById(id);
+                const value = elem.value;
                 elem.innerHTML = '<option value="">-- Chọn --</option>' + playerNames.map(p => `<option value="${p}">${p}</option>`).join('');
+                if (value) elem.value = value;
             });
+        }
+
+        function updateMatchForm() {
+            if (!document.getElementById('eventDate').value) return;
         }
 
         function addMatch() {
@@ -1129,7 +1118,6 @@
                     schedules = data.schedules || [];
                     matches = data.matches || [];
                     adminPassword = data.adminPassword || 'Tayho';
-                    readOnlyMode = true;
                     saveData();
                     localStorage.setItem('adminPassword', adminPassword);
                     updateMembersList();
@@ -1181,7 +1169,6 @@
         };
 
         window.toggleReadOnlyWithPassword = toggleReadOnlyWithPassword;
-        window.setAdminPassword = setAdminPassword;
         window.manualSaveFirebase = manualSaveFirebase;
         window.manualLoadFirebase = manualLoadFirebase;
         window.switchTab = switchTab;
@@ -1189,6 +1176,7 @@
         window.deleteMember = deleteMember;
         window.addSchedule = addSchedule;
         window.deleteSchedule = deleteSchedule;
+        window.updateMatchForm = updateMatchForm;
         window.addMatch = addMatch;
         window.deleteMatch = deleteMatch;
         window.updatePaymentList = updatePaymentList;
@@ -1218,6 +1206,7 @@
             document.getElementById('rankingSkillBody').innerHTML = '<tr><td colspan="4" class="empty-state">Chưa có dữ liệu</td></tr>';
             document.getElementById('rankingScoreBody').innerHTML = '<tr><td colspan="5" class="empty-state">Chưa có dữ liệu</td></tr>';
             showNotification('Đã xóa tất cả', 'success');
+            autoSync();
         };
 
         function showNotification(message, type = 'info') {

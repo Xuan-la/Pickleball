@@ -424,7 +424,6 @@
                     <label>VĐV 2</label>
                     <select id="pair1b">
                         <option value="">-- Chọn --</option>
-                    </select>
                 </div>
             </div>
             <div class="form-group">
@@ -543,7 +542,7 @@
             </div>
 
             <div class="info-text" style="margin-top: 20px; background: rgba(192, 21, 47, 0.1); padding: 12px; border-radius: 8px;">
-                ⚠️ <strong>Chế Độ Xem:</strong> Khi bật, chỉ khóa nút Thêm / Ghi / Xóa<br>
+                ⚠️ <strong>Chế Độ Xem:</strong> Khi bật, chỉ khóa nút Thêm / Ghi / Xóa, vẫn chọn lịch, VĐV, ngày tính tiền bình thường<br>
                 ⚠️ <strong>Mật Khẩu:</strong> Được lưu và đồng bộ trên Cloud Firebase
             </div>
 
@@ -641,14 +640,12 @@
         }
 
         function applyReadOnlyMode() {
-            // Chế độ xem: chỉ khóa nút hành động, KHÔNG khóa select / input ngày
-            const disableButtonsText = ['Thêm', 'Ghi', 'Xóa'];
+            // KHÔNG khóa input/select – chỉ khóa các nút hành động
             const buttons = document.querySelectorAll('.btn');
-
             buttons.forEach(btn => {
                 const text = btn.textContent || '';
                 const isAction =
-                    disableButtonsText.some(t => text.includes(t)) &&
+                    (text.includes('Thêm') || text.includes('Ghi') || text.includes('Xóa')) &&
                     !text.includes('Tải') && !text.includes('Firebase');
                 if (isAction) {
                     btn.disabled = readOnlyMode;
@@ -794,6 +791,7 @@
 
         function updateMatchForm() {
             if (!document.getElementById('eventDate').value) return;
+            updateMatchList();
         }
 
         function addMatch() {

@@ -151,8 +151,6 @@
         .btn.success:hover { background: #1a8a3a; }
         .btn.danger { background: var(--color-error); }
         .btn.danger:hover { background: #a0121f; }
-        .btn.warning { background: var(--color-warning); }
-        .btn.warning:hover { background: #974325; }
 
         .row {
             display: grid;
@@ -538,19 +536,31 @@
                 <label>
                     <strong>⚠️ Chế Độ Xem (Chỉ Đọc) - Luôn Bật</strong>
                 </label>
-                <p class="info-text" style="margin-top: 8px;">Chế độ xem luôn bật. Nhập mật khẩu để tạm tắt trong 5 phút.</p>
-                <button class="btn warning" onclick="toggleReadOnlyWithPassword()">🔓 Tắt Chế Độ Xem (5 phút)</button>
+                <p class="info-text" style="margin-top: 8px;">Chế độ xem luôn được bật và đồng bộ với Cloud. Nhập mật khẩu để tắt chế độ xem.</p>
+                <button class="btn" style="background: var(--color-warning); margin-top: 12px;" onclick="toggleReadOnlyWithPassword()">🔓 Tắt Chế Độ Xem</button>
             </div>
 
+            <div class="form-group" style="margin-top: 20px;">
+                <label>Thay Đổi Mật Khẩu Admin</label>
+                <input type="password" id="adminPassword" placeholder="Nhập mật khẩu mới">
+            </div>
+
+            <button class="btn" onclick="setAdminPassword()">🔑 Thay Đổi Mật Khẩu</button>
+
             <div class="info-text" style="margin-top: 20px; background: rgba(192, 21, 47, 0.1); padding: 12px; border-radius: 8px;">
-                ⚠️ <strong>Chế Độ Xem:</strong> Khi bật, chỉ khóa nút Thêm / Ghi / Xóa<br>
-                ⚠️ <strong>Mật Khẩu:</strong> Được lưu và đồng bộ trên Cloud Firebase
+                ⚠️ <strong>Chế Độ Xem:</strong> Người khác chỉ có thể xem, không thể thêm/xóa/sửa<br>
+                ⚠️ <strong>Mật Khẩu:</strong> Bảo vệ khi tắt chế độ xem (nếu có)<br>
+                ⚠️ <strong>Lưu ý:</strong> Mật khẩu được lưu trên máy này, không phải cloud
             </div>
 
             <h3 style="margin-top: 30px;">Trạng Thái Hiện Tại</h3>
             <div class="payment-item">
                 <div class="payment-name">Chế Độ</div>
                 <div><span id="modeStatus" class="money negative">🔒 Chỉ Xem (Bật)</span></div>
+            </div>
+            <div class="payment-item">
+                <div class="payment-name">Mật Khẩu</div>
+                <div><span id="pwdStatus" class="money positive">✓ Đã Đặt</span></div>
             </div>
             <div class="payment-item">
                 <div class="payment-name">Đồng Bộ Cloud</div>
@@ -599,6 +609,7 @@
         let autoSyncEnabled = true;
         let readOnlyMode = true;
         let adminPassword = localStorage.getItem('adminPassword') || 'Tayho';
+        let cloudData = {};
 
         function switchTab(event, tabName) {
             document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
@@ -614,43 +625,85 @@
         }
 
         function updateSettingsUI() {
-            document.getElementById('modeStatus').textContent = readOnlyMode ? '🔒 Chỉ Xem (Bật)' : '✏️ Chỉnh Sửa (Tạm thời)';
-            document.getElementById('modeStatus').className = readOnlyMode ? 'money negative' : 'money positive';
+            document.getElementById('modeStatus').textContent = '🔒 Chỉ Xem (Bật)';
+            document.getElementById('modeStatus').className = 'money negative';
+            document.getElementById('pwdStatus').textContent = '✓ Đã Đặt: ' + adminPassword;
+            document.getElementById('pwdStatus').className = 'money positive';
             document.getElementById('syncStatus2').textContent = '✓ Tự Động';
             document.getElementById('syncStatus2').className = 'money positive';
         }
 
         function toggleReadOnlyWithPassword() {
-            const pwd = prompt('Nhập mật khẩu admin để tắt chế độ xem (5 phút):');
+            const pwd = prompt('Nhập mật khẩu admin để tắt chế độ xem:');
             if (!pwd) return;
             if (pwd !== adminPassword) {
-                showNotification('Mật khẩu sai!', 'error');
+                showNotification('Mật khẩu sai! Chế độ xem vẫn bật.', 'error');
                 return;
             }
             readOnlyMode = false;
+            localStorage.setItem('readOnlyMode', readOnlyMode);
             applyReadOnlyMode();
+            showNotification('✓ Chế độ chỉnh sửa đã bật - 5 phút', 'success');
             updateSettingsUI();
-            showNotification('✓ Chế độ chỉnh sửa đã bật trong 5 phút', 'success');
             setTimeout(() => {
                 readOnlyMode = true;
+                localStorage.setItem('readOnlyMode', readOnlyMode);
                 applyReadOnlyMode();
+                showNotification('⏱️ Quay lại chế độ xem', 'info');
                 updateSettingsUI();
-                showNotification('⏱️ Đã quay lại chế độ chỉ xem', 'info');
-                autoSync();
             }, 300000);
         }
 
-        function applyReadOnlyMode() {
-            // Chế độ xem: chỉ khóa nút hành động, KHÔNG khóa select / input ngày
-            const disableButtonsText = ['Thêm', 'Ghi', 'Xóa'];
-            const buttons = document.querySelectorAll('.btn');
+        function toggleReadOnly() {
+            const checkbox = document.getElementById('readOnlyMode');
+            const pwd = prompt('Nhập mật khẩu admin để tắt chế độ xem:');
+            if (pwd !== adminPassword) {
+                showNotification('Mật khẩu sai! Chế độ xem vẫn bật.', 'error');
+                checkbox.checked = true;
+                return;
+            }
+            readOnlyMode = false;
+            localStorage.setItem('readOnlyMode', readOnlyMode);
+            applyReadOnlyMode();
+            showNotification('✓ Chế độ chỉnh sửa đã bật', 'success');
+            updateSettingsUI();
+            autoSync();
+        }
 
+        function setAdminPassword() {
+            const newPwd = document.getElementById('adminPassword').value.trim();
+            if (!newPwd) {
+                showNotification('Mật khẩu không được để trống', 'error');
+                return;
+            }
+            const currentPwd = prompt('Nhập mật khẩu hiện tại để xác nhận:');
+            if (currentPwd !== adminPassword) {
+                showNotification('Mật khẩu hiện tại sai!', 'error');
+                return;
+            }
+            localStorage.setItem('adminPassword', newPwd);
+            adminPassword = newPwd;
+            showNotification('✓ Mật khẩu đã thay đổi và đồng bộ', 'success');
+            document.getElementById('adminPassword').value = '';
+            updateSettingsUI();
+            autoSync();
+        }
+
+        function applyReadOnlyMode() {
+            const disableElements = [
+                'memberName', 'memberType', 'scheduleDate', 'scheduleNote', 
+                'eventDate', 'pair1a', 'pair1b', 'pair2a', 'pair2b', 'score1', 'score2',
+                'paymentDate', 'adminPassword'
+            ];
+            
+            disableElements.forEach(id => {
+                const elem = document.getElementById(id);
+                if (elem) elem.disabled = readOnlyMode;
+            });
+
+            const buttons = document.querySelectorAll('.btn');
             buttons.forEach(btn => {
-                const text = btn.textContent || '';
-                const isAction =
-                    disableButtonsText.some(t => text.includes(t)) &&
-                    !text.includes('Tải') && !text.includes('Firebase');
-                if (isAction) {
+                if (!btn.id.includes('autoSyncBtn') && !btn.textContent.includes('Firebase') && !btn.textContent.includes('Tải')) {
                     btn.disabled = readOnlyMode;
                     btn.style.opacity = readOnlyMode ? '0.5' : '1';
                     btn.style.cursor = readOnlyMode ? 'not-allowed' : 'pointer';
@@ -765,21 +818,42 @@
         }
 
         function updateScheduleSelects() {
-            const select = document.getElementById('eventDate');
-            const value = select.value;
-            select.innerHTML = '<option value="">-- Chọn ngày --</option>' +
+            const selectEventDate = document.getElementById('eventDate');
+            const selectPaymentDate = document.getElementById('paymentDate');
+            const valueEvent = selectEventDate.value;
+            const valuePayment = selectPaymentDate.value;
+            
+            const optionsHtml = '<option value="">-- Chọn ngày --</option>' +
                 schedules.map(s => `<option value="${s.date}">${s.displayDate || new Date(s.date).toLocaleDateString('vi-VN')}${s.note ? ` (${s.note})` : ''}</option>`).join('');
-            if (value) select.value = value;
-            updatePaymentDropdown();
+            
+            selectEventDate.innerHTML = optionsHtml;
+            selectPaymentDate.innerHTML = optionsHtml;
+            
+            if (valueEvent) selectEventDate.value = valueEvent;
+            if (valuePayment) selectPaymentDate.value = valuePayment;
         }
 
         function updatePaymentDropdown() {
-            const select = document.getElementById('paymentDate');
-            const value = select.value;
-            select.innerHTML = '<option value="">-- Chọn ngày --</option>' +
-                schedules.map(s => `<option value="${s.date}">${s.displayDate || new Date(s.date).toLocaleDateString('vi-VN')}${s.note ? ` (${s.note})` : ''}</option>`).join('');
-            if (value) select.value = value;
+            // Gọi updateScheduleSelects để sync cả 2 dropdown
+            updateScheduleSelects();
         }
+
+        // Init
+        updateMembersList();
+        updatePairSelects();
+        updateScheduleList();
+        updateScheduleSelects();
+        updateMatchList();
+        document.getElementById('autoSyncBtn').textContent = '✅ Tự Động Đồng Bộ (BẬT)';
+        applyReadOnlyMode();
+        updateSettingsUI();
+
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                manualLoadFirebase();
+                updateScheduleSelects(); // Đảm bảo dropdown được update sau khi load Firebase
+            }, 500);
+        });
 
         function updatePairSelects() {
             const playerNames = members.map(m => m.name);
@@ -1118,6 +1192,7 @@
                     schedules = data.schedules || [];
                     matches = data.matches || [];
                     adminPassword = data.adminPassword || 'Tayho';
+                    readOnlyMode = true;
                     saveData();
                     localStorage.setItem('adminPassword', adminPassword);
                     updateMembersList();
@@ -1168,7 +1243,9 @@
             showNotification('✅ Tự động đồng bộ luôn bật', 'info');
         };
 
-        window.toggleReadOnlyWithPassword = toggleReadOnlyWithPassword;
+        window.toggleReadOnly = toggleReadOnlyWithPassword;
+        window.setAdminPassword = setAdminPassword;
+
         window.manualSaveFirebase = manualSaveFirebase;
         window.manualLoadFirebase = manualLoadFirebase;
         window.switchTab = switchTab;
@@ -1206,7 +1283,6 @@
             document.getElementById('rankingSkillBody').innerHTML = '<tr><td colspan="4" class="empty-state">Chưa có dữ liệu</td></tr>';
             document.getElementById('rankingScoreBody').innerHTML = '<tr><td colspan="5" class="empty-state">Chưa có dữ liệu</td></tr>';
             showNotification('Đã xóa tất cả', 'success');
-            autoSync();
         };
 
         function showNotification(message, type = 'info') {
@@ -1233,6 +1309,7 @@
         applyReadOnlyMode();
         updateSettingsUI();
 
+        // Auto load Firebase on startup
         window.addEventListener('load', () => {
             setTimeout(() => manualLoadFirebase(), 500);
         });

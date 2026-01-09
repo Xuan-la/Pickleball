@@ -621,7 +621,7 @@
         }
 
         function toggleReadOnlyWithPassword() {
-            const pwd = prompt('Nhập mật khẩu admin để tắt chế độ xem (5 phút):');
+            const pwd = prompt('Nhập mật khẩu admin để tắt chế độ xem (30 phút):');
             if (!pwd) return;
             if (pwd !== adminPassword) {
                 showNotification('Mật khẩu sai!', 'error');
@@ -637,7 +637,7 @@
                 updateSettingsUI();
                 showNotification('⏱️ Đã quay lại chế độ chỉ xem', 'info');
                 autoSync();
-            }, 300000);
+            }, 1800000);
         }
 
         function applyReadOnlyMode() {
